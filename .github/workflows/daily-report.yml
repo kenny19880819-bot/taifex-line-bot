@@ -1,0 +1,59 @@
+name: 台指期籌碼快訊
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0,30 16 * * 1-5"
+      timezone: "Asia/Taipei"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: taifex-daily-report
+  cancel-in-progress: false
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下載程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安裝 PDF 工具與套件
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pip install -r requirements.txt
+
+      - name: 尋找並轉換今日快訊
+        id: report
+        run: python scripts/fetch_report.py
+
+      - name: 發布圖片
+        if: steps.report.outputs.status == 'new'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports
+          git commit -m "新增 ${{ steps.report.outputs.report_date }} 台指期籌碼快訊"
+          git push
+
+      - name: 傳送至 LINE 群組
+        if: steps.report.outputs.status == 'new'
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_GROUP_ID: ${{ secrets.LINE_GROUP_ID }}
+        run: python scripts/send_line.py
+
+      - name: 記錄已傳送日期
+        if: steps.report.outputs.status == 'new'
+        run: |
+          git add reports/sent_dates.txt
+          git commit -m "記錄 ${{ steps.report.outputs.report_date }} 已傳送"
+          git push
