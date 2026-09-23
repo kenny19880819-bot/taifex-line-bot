@@ -3,11 +3,7 @@ name: 台指期籌碼快訊
 on:
   workflow_dispatch:
   schedule:
-    - cron: "30 15 * * 1-5"
-      timezone: "Asia/Taipei"
-
-    - cron: "0 16 * * 1-5"
-      timezone: "Asia/Taipei"
+    - cron: "*/5 * * * *"
       
 permissions:
   contents: write
